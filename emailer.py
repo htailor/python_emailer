@@ -8,7 +8,7 @@ from smtplib import SMTP
 
 
 class Email(object):
-    
+
     def __init__(self, subject, sender, recipients, message):
         self.subject = subject
         self.sender = sender
@@ -30,35 +30,34 @@ class Email(object):
 
 
 class EmailAttachment(Email):
-    
+
     def __init__(self, subject, sender, recipients, message, files):
         super(EmailAttachment, self).__init__(subject, sender, recipients, message)
         self.files = files
-        
+        if type(self.files) is not list:
+            self.files = [self.files]
+
     def compress(self):
         zfiles = []
         for file in self.files:
-            _zfile = file + ".zip"
-            with zipfile.ZipFile(_zfile, "w", zipfile.DEFLATED) as _zipped_file:
+            _zfile = file.split(".")[0] + ".zip"
+            with zipfile.ZipFile(_zfile, "w", zipfile.ZIP_DEFLATED) as _zipped_file:
                 _zipped_file.write(file)
             zfiles.append(_zfile)
         self.files = zfiles
 
     def __attach_files__(self):
-        if type(self.files) is not list:
-            files = [self.files]
-        # Allow overriding of file name when sending
-        for file_name in files:
+        for file_name in self.files:
             if type(file_name) in (list, tuple):
                 file_name, output_filename = file_name
             else:
                 output_filename = basename(file_name)
 
-            # Add the CSV as an attachment
+            # Add the file as an attachment
             part = MIMEBase("application", "octet-stream")
             part.set_payload(open(file_name, "rb").read())
             Encoders.encode_base64(part)
-            part.add_header("Content-Disposition", "attachment; filename='%s'" % output_filename)
+            part.add_header("Content-Disposition", "attachment; filename=%s" % output_filename)
             self.msg.attach(part)
 
     def __generate_email__(self):
@@ -69,10 +68,19 @@ class EmailAttachment(Email):
 
 if __name__ == "__main__":
 
-    subject = "Class Test"
+    subject = "Emailer Test"
     sender = ""
     recipients = ""
-    message = "This is just a test"
+    message = "This is just a test message"
+    files = ""
 
     e = Email(subject, sender, recipients, message)
+    e.send()
+
+    # test sending an email with attachment
+    e = EmailAttachment(subject, sender, recipients, message, files)
+    e.send()
+
+    # test sending an email with a compressed attachment
+    e.compress()
     e.send()
